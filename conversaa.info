@@ -1,0 +1,6 @@
+name = Conversaa
+description = Main module of Conversaa
+package = "Conversaa"
+core = 7.x
+configure = admin/settings/conversaa
+scripts[] = "js/conversaa.js"

@@ -1,0 +1,50 @@
+<?php 
+
+function conversaa_admin() {
+  $form = array();
+
+  $form['conversaa_url'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Instance conversaa liée"),
+    '#attributes' =>array('placeholder' => t('http://site.conversaa.com')),
+    '#default_value' => variable_get('conversaa_url', ''),
+    '#description' => t("Entrez l'url de l'instance conversaa liée"),
+    '#required' => TRUE,
+  );
+
+  return system_settings_form($form);
+}
+
+function conversaa_menu() {
+
+  $items = array();
+
+  $items['admin/settings/conversaa'] = array(
+    'title' => 'Conversaa',
+    'description' => 'Sert à configurer conversaa',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('conversaa_admin'),
+    'access arguments' => array('administer conversaa settings'),
+    'type' => MENU_NORMAL_ITEM,
+   );
+
+  return $items;
+}
+
+function conversaa_admin_validate($form, &$form_state) {
+  $url = $form_state['values']['conversaa_url'];
+  if(strpos($url, 'http://') === false){
+  	form_set_error('conversaa_url', t('Vous devez entrer une url correcte'));
+  }
+  elseif (substr($url, -1) == '/') {
+    form_set_error('conversaa_url', t("L'url entrée ne doit pas finir par un slash"));
+  }
+}
+
+function conversaa_init()
+{
+  if(variable_get('conversaa_url')){
+    $url = variable_get('conversaa_url');
+    drupal_add_js(array('conversaa' => array('url' => $url)), array('type' => 'setting'));
+  }
+}
