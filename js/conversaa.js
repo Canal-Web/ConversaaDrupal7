@@ -9,5 +9,5 @@ jQuery.conversaaPixel = function conversaaPixel() {
 }
 jQuery(document).ready(function($) {
   var pixel = $.conversaaPixel();
-  $('body').append("<img src='"+pixel+"' />");
+  $('body').append("<img src='"+pixel+"' style='display:none'; />");
 });
