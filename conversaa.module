@@ -1,4 +1,4 @@
-<?php 
+<?php
 
 function conversaa_admin() {
   $form = array();
@@ -43,8 +43,19 @@ function conversaa_admin_validate($form, &$form_state) {
 
 function conversaa_init()
 {
+  global $user;
+  // Set $email with the current user email or the GET paramater "email"
+  $email = '';
+
+  if($user->uid){
+    $email = $user->email;
+  }
+
+  if(isset($_GET['email'])){
+    $email = $_GET['email'];
+  }
   if(variable_get('conversaa_url')){
     $url = variable_get('conversaa_url');
-    drupal_add_js(array('conversaa' => array('url' => $url)), array('type' => 'setting'));
+    drupal_add_js(array('conversaa' => array('url' => $url, 'email' => $email)), array('type' => 'setting'));
   }
 }
