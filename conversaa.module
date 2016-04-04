@@ -1,4 +1,6 @@
 <?php
+use Mautic\MauticApi;
+use Mautic\Auth\ApiAuth;
 
 function conversaa_admin() {
   $form = array();
@@ -10,6 +12,30 @@ function conversaa_admin() {
     '#default_value' => variable_get('conversaa_url', ''),
     '#description' => t("Entrez l'url de l'instance conversaa liée"),
     '#required' => TRUE,
+  );
+  $form['conversaa_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Clé client Conversaa"),
+    '#default_value' => variable_get('conversaa_key', ''),
+    '#description' => t("Entrez la clé client de Conversaa (à générer dans credentials)"),
+  );
+  $form['conversaa_secret_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Clé  secrète Conversaa"),
+    '#default_value' => variable_get('conversaa_secret_key', ''),
+    '#description' => t("Entrez la clé secrète de Conversaa (à générer dans credentials)"),
+  );
+  $form['conversaa_rappel_url'] = array(
+    '#type' => 'textfield',
+    '#title' => t("Url de rappel"),
+    '#default_value' => variable_get('conversaa_rappel_url', ''),
+    '#description' => t("Lien de retour après l'authentification"),
+  );
+  $form['conversaa_tokens'] = array(
+    '#type' => 'textarea',
+    '#title' => t("Tokens de connexion, ne pas modifier"),
+    '#default_value' => variable_get('conversaa_tokens', ''),
+    '#description' => t("Pour générer les tokens, !cliquez", array('!cliquez' => l('cliquez ici', 'generate-oauth'))),
   );
 
   return system_settings_form($form);
@@ -27,7 +53,13 @@ function conversaa_menu() {
     'access arguments' => array('administer conversaa settings'),
     'type' => MENU_NORMAL_ITEM,
    );
-
+   $items['generate-oauth'] = array(
+     'title' => 'Conversaa',
+     'description' => 'Générer tokens',
+     'page callback' => 'conversaa_generate',
+     'access arguments' => array('administer conversaa settings'),
+     'type' => MENU_NORMAL_ITEM,
+    );
   return $items;
 }
 
@@ -40,6 +72,7 @@ function conversaa_admin_validate($form, &$form_state) {
     form_set_error('conversaa_url', t("L'url entrée ne doit pas finir par un slash"));
   }
 }
+
 
 function conversaa_init()
 {
@@ -58,4 +91,92 @@ function conversaa_init()
     $url = variable_get('conversaa_url');
     drupal_add_js(array('conversaa' => array('url' => $url, 'email' => $email)), array('type' => 'setting'));
   }
+}
+/**
+  * Retrieve Oauth informations and generate the settings array
+  * @return array $settings
+  */
+ function conversaa_get_settings()
+ {
+
+   // Informations stored in Magento configuration variables.
+   $baseUrl = variable_get('conversaa_url');
+   $clientKey = variable_get('conversaa_key');
+   $secretKey = variable_get('conversaa_secret_key');
+   $callback = variable_get('conversaa_rappel_url');
+
+
+   $settings = array(
+     'baseUrl'      => $baseUrl,
+     'version'      => 'OAuth2',
+     'clientKey'    => $clientKey,
+     'clientSecret' => $secretKey,
+     'callback'     => $callback
+   );
+
+   // If the tokens are stored, they are added to the settings array.
+   $tokens = variable_get('conversaa_tokens');
+
+   if(!empty($tokens)){
+     $tokens = unserialize($tokens);
+     $settings['accessToken']        = $tokens['access_token'];
+     $settings['accessTokenExpires'] = $tokens['expires']; //UNIX timestamp
+     $settings['refreshToken'] 		= $tokens['refresh_token'];
+   }
+
+   return $settings;
+ }
+
+ /**
+ * Generate the first time access to Conversaa and save the access tokens
+ */
+function conversaa_generate()
+{
+
+	$settings = conversaa_get_settings();
+
+  $auth = ApiAuth::initiate($settings);
+
+
+	if ($auth->validateAccessToken()) {
+	    // Obtain the access token returned; call accessTokenUpdated() to catch if the token was updated via a refresh token
+
+	    // $accessTokenData will have the following keys:
+	    // For OAuth1.0a: access_token, access_token_secret, expires
+	    // For OAuth2: access_token, expires, token_type, refresh_token
+
+	    if ($auth->accessTokenUpdated()) {
+
+	        $accessTokenData = $auth->getAccessTokenData();
+	        variable_set('conversaa_tokens', serialize($accessTokenData));
+          drupal_set_message(t('Les tokens de connexion ont bien été créés'), 'status');
+	    }
+	}
+
+  drupal_goto('admin/settings/conversaa');
+}
+
+/**
+ * Generate a connection object once the first connection has been made
+ * @return object $auth
+ */
+function conversaa_connect()
+{
+	$settings  = conversaa_get_settings();
+  $auth = ApiAuth::initiate($settings);
+  return  $auth;
+}
+
+/**
+ * Call the getContext() method of MauticApi, so it's easier to call into templates
+ * @param string $context
+ * @return object $api
+ */
+function conversaa_get_context($context)
+{
+  $apiUrl = variable_get('conversaa_url') . '/api/';
+  $auth = conversaa_connect();
+  $api = MauticApi::getContext($context, $auth, $apiUrl);
+
+  return  $api;
 }

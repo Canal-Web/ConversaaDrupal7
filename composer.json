@@ -1,0 +1,5 @@
+{
+     "require": {
+         "mautic/api-library": "dev-master"
+     }
+}
